@@ -3,8 +3,8 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"flag"
-	"fmt"
 	"github.com/Shopify/sarama"
 	"io/ioutil"
 	"log"
@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-type kafkaOpts struct {
+type cmdOpts struct {
 	brokers     string
 	version     string
 	verbose     bool
@@ -21,8 +21,31 @@ type kafkaOpts struct {
 	tlsKeyFile  string
 }
 
-func main() {
-	opts := kafkaOpts{}
+type NodeShape string
+
+var (
+	ShapeCircle   NodeShape = "circle"
+	ShapeEllipse  NodeShape = "ellipse"
+	ShapeDatabase NodeShape = "database"
+	ShapeBox      NodeShape = "box"
+	ShapeDiamond  NodeShape = "diamond"
+	ShapeSquare   NodeShape = "square"
+)
+
+type Node struct {
+	ID    int       `json:"id"`
+	Label string    `json:"label"`
+	Shape NodeShape `json:"shape"`
+}
+
+type Edge struct {
+	From   int    `json:"from"`
+	To     int    `json:"to"`
+	Arrows string `json:"arrows"`
+	Dashes bool   `json:"dashes,omitempty"`
+}
+
+func parseFlags() (opts cmdOpts) {
 	flag.StringVar(&opts.brokers, "brokers", "", "Kafka bootstrap brokers to connect to, as a comma separated list")
 	flag.StringVar(&opts.version, "version", "2.2.0", "Kafka cluster version")
 	flag.BoolVar(&opts.verbose, "verbose", false, "Sarama logging")
@@ -39,16 +62,22 @@ func main() {
 		sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 	}
 
-	version, err := sarama.ParseKafkaVersion(opts.version)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	return
+}
+
+func main() {
+	opts := parseFlags()
 
 	/**
 	 * Construct a new Sarama configuration.
 	 * The Kafka cluster version has to be defined before the consumer/producer is initialized.
 	 */
 	config := sarama.NewConfig()
+
+	version, err := sarama.ParseKafkaVersion(opts.version)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	config.Version = version
 	config.ClientID = "kafka-acl-viewer"
 
@@ -75,6 +104,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	// Load all topic ACLs
 	resourceAcls, err := client.ListAcls(sarama.AclFilter{
 		ResourceType:   sarama.AclResourceTopic,
 		PermissionType: sarama.AclPermissionAny,
@@ -83,5 +113,94 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Printf("%#v\n", resourceAcls)
+
+	// Convert ACLs into a data structure that is easier to build a graph from
+	type userOps struct {
+		To   map[string]struct{}
+		From map[string]struct{}
+	}
+	users := map[string]userOps{}
+	for _, resAcl := range resourceAcls {
+		for _, acl := range resAcl.Acls {
+			if _, ok := users[acl.Principal]; !ok {
+				users[acl.Principal] = userOps{To: map[string]struct{}{}, From: map[string]struct{}{}}
+			}
+			u := users[acl.Principal]
+			if acl.PermissionType == sarama.AclPermissionAllow {
+				switch acl.Operation {
+				case sarama.AclOperationRead:
+					u.From[resAcl.ResourceName] = struct{}{}
+				case sarama.AclOperationWrite:
+					u.To[resAcl.ResourceName] = struct{}{}
+				case sarama.AclOperationAll:
+				case sarama.AclOperationAny:
+					u.From[resAcl.ResourceName] = struct{}{}
+					u.To[resAcl.ResourceName] = struct{}{}
+				}
+			}
+		}
+	}
+
+	// Create user nodes
+	var nodes []Node
+	i := 0
+	userIdLookup := map[string]int{}
+	for user := range users {
+		userIdLookup[user] = i
+		nodes = append(nodes, Node{
+			ID:    i,
+			Label: user,
+			Shape: ShapeBox,
+		})
+		i++
+	}
+
+	// Create topic nodes
+	topics, err := client.ListTopics()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	topicIdLookup := map[string]int{}
+	for topic := range topics {
+		topicIdLookup[topic] = i
+		nodes = append(nodes, Node{
+			ID:    i,
+			Label: topic,
+			Shape: ShapeCircle,
+		})
+		i++
+	}
+
+	// Add all the edges
+	var edges []Edge
+	for user, ops := range users {
+		for input := range ops.From {
+			edges = append(edges, Edge{
+				From:   topicIdLookup[input],
+				To:     userIdLookup[user],
+				Arrows: "to",
+				Dashes: false,
+			})
+		}
+		for output := range ops.To {
+			edges = append(edges, Edge{
+				From:   userIdLookup[user],
+				To:     topicIdLookup[output],
+				Arrows: "to",
+				Dashes: false,
+			})
+		}
+	}
+
+	jsonNodes, err := json.Marshal(nodes)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	println(string(jsonNodes))
+
+	jsonEdges, err := json.Marshal(edges)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	println(string(jsonEdges))
 }
