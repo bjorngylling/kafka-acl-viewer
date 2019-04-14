@@ -24,12 +24,8 @@ type cmdOpts struct {
 type NodeShape string
 
 var (
-	ShapeCircle   NodeShape = "circle"
-	ShapeEllipse  NodeShape = "ellipse"
-	ShapeDatabase NodeShape = "database"
-	ShapeBox      NodeShape = "box"
-	ShapeDiamond  NodeShape = "diamond"
-	ShapeSquare   NodeShape = "square"
+	ShapeCircle NodeShape = "circle"
+	ShapeBox    NodeShape = "box"
 )
 
 type Node struct {
