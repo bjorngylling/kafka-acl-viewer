@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"flag"
 	"github.com/Shopify/sarama"
+	"html/template"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 )
@@ -192,11 +194,18 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	println(string(jsonNodes))
-
 	jsonEdges, err := json.Marshal(edges)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	println(string(jsonEdges))
+
+	tmpl := template.Must(template.New("page").Parse(graphTemplate))
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		err := tmpl.Execute(w, graphTemplateData{template.JS(string(jsonNodes)), template.JS(string(jsonEdges))})
+		if err != nil {
+			log.Fatalln(err)
+		}
+	})
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
