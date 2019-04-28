@@ -21,6 +21,7 @@ type cmdOpts struct {
 	tlsCAFile   string
 	tlsCertFile string
 	tlsKeyFile  string
+	listenAddr  string
 }
 
 type NodeShape string
@@ -50,6 +51,7 @@ func parseFlags() (opts cmdOpts) {
 	flag.StringVar(&opts.tlsCAFile, "ca-file", "", "Certificate authority file")
 	flag.StringVar(&opts.tlsCertFile, "cert-file", "", "Client certificate file")
 	flag.StringVar(&opts.tlsKeyFile, "key-file", "", "Client key file")
+	flag.StringVar(&opts.listenAddr, "listen-addr", ":8080", "Address to listen on for the web interface")
 	flag.Parse()
 
 	if len(opts.brokers) == 0 {
@@ -63,13 +65,10 @@ func parseFlags() (opts cmdOpts) {
 	return
 }
 
-func main() {
-	opts := parseFlags()
-
-	/**
-	 * Construct a new Sarama configuration.
-	 * The Kafka cluster version has to be defined before the consumer/producer is initialized.
-	 */
+/**
+ * Construct a new admin client connected to the kafka cluster.
+ */
+func createAdminClient(opts cmdOpts) sarama.ClusterAdmin {
 	config := sarama.NewConfig()
 
 	version, err := sarama.ParseKafkaVersion(opts.version)
@@ -101,7 +100,15 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	return client
+}
 
+type UserOps struct {
+	To   map[string]struct{}
+	From map[string]struct{}
+}
+
+func fetchUserOps(client sarama.ClusterAdmin) map[string]UserOps {
 	// Load all topic ACLs
 	resourceAcls, err := client.ListAcls(sarama.AclFilter{
 		ResourceType:   sarama.AclResourceTopic,
@@ -113,17 +120,14 @@ func main() {
 	}
 
 	// Convert ACLs into a data structure that is easier to build a graph from
-	type userOps struct {
-		To   map[string]struct{}
-		From map[string]struct{}
-	}
-	users := map[string]userOps{}
+	users := map[string]UserOps{}
 	for _, resAcl := range resourceAcls {
 		for _, acl := range resAcl.Acls {
-			if _, ok := users[acl.Principal]; !ok {
-				users[acl.Principal] = userOps{To: map[string]struct{}{}, From: map[string]struct{}{}}
+			userDn := strings.TrimPrefix(acl.Principal, "User:")
+			if _, ok := users[userDn]; !ok {
+				users[userDn] = UserOps{To: map[string]struct{}{}, From: map[string]struct{}{}}
 			}
-			u := users[acl.Principal]
+			u := users[userDn]
 			if acl.PermissionType == sarama.AclPermissionAllow {
 				switch acl.Operation {
 				case sarama.AclOperationRead:
@@ -139,6 +143,13 @@ func main() {
 		}
 	}
 
+	return users
+}
+
+func main() {
+	opts := parseFlags()
+	client := createAdminClient(opts)
+	users := fetchUserOps(client)
 	// Create user nodes
 	var nodes []Node
 	i := 0
@@ -207,5 +218,7 @@ func main() {
 			log.Fatalln(err)
 		}
 	})
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	log.Println("listening on", opts.listenAddr)
+	log.Fatal(http.ListenAndServe(opts.listenAddr, nil))
 }
