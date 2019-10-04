@@ -12,16 +12,18 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 type cmdOpts struct {
-	brokers     string
-	version     string
-	verbose     bool
-	tlsCAFile   string
-	tlsCertFile string
-	tlsKeyFile  string
-	listenAddr  string
+	brokers       string
+	version       string
+	verbose       bool
+	tlsCAFile     string
+	tlsCertFile   string
+	tlsKeyFile    string
+	listenAddr    string
+	fetchInterval time.Duration
 }
 
 type NodeShape string
@@ -52,6 +54,7 @@ func parseFlags() (opts cmdOpts) {
 	flag.StringVar(&opts.tlsCertFile, "cert-file", "", "Client certificate file")
 	flag.StringVar(&opts.tlsKeyFile, "key-file", "", "Client key file")
 	flag.StringVar(&opts.listenAddr, "listen-addr", ":8080", "Address to listen on for the web interface")
+	flag.DurationVar(&opts.fetchInterval, "fetch-interval", 10*time.Minute, "The interval at which to update the ACLs from Kafka")
 	flag.Parse()
 
 	if len(opts.brokers) == 0 {
@@ -146,10 +149,7 @@ func fetchUserOps(client sarama.ClusterAdmin) map[string]UserOps {
 	return users
 }
 
-func main() {
-	opts := parseFlags()
-	client := createAdminClient(opts)
-	users := fetchUserOps(client)
+func loadData(users map[string]UserOps, client sarama.ClusterAdmin) ([]Node, []Edge) {
 	// Create user nodes
 	var nodes []Node
 	i := 0
@@ -201,19 +201,35 @@ func main() {
 		}
 	}
 
-	jsonNodes, err := json.Marshal(nodes)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	jsonEdges, err := json.Marshal(edges)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	return nodes, edges
+}
+
+func main() {
+	opts := parseFlags()
+	client := createAdminClient(opts)
+
+	var nodes []Node
+	var edges []Edge
+	go func() {
+		for {
+			users := fetchUserOps(client)
+			nodes, edges = loadData(users, client)
+			time.Sleep(opts.fetchInterval)
+		}
+	}()
 
 	tmpl := template.Must(template.New("page").Parse(graphTemplate))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		err := tmpl.Execute(w, graphTemplateData{template.JS(string(jsonNodes)), template.JS(string(jsonEdges))})
+		jsonNodes, err := json.Marshal(nodes)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		jsonEdges, err := json.Marshal(edges)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		err = tmpl.Execute(w, graphTemplateData{template.JS(string(jsonNodes)), template.JS(string(jsonEdges))})
 		if err != nil {
 			log.Fatalln(err)
 		}
