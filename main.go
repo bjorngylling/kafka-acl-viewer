@@ -26,20 +26,20 @@ type cmdOpts struct {
 	fetchInterval time.Duration
 }
 
-type NodeShape string
+type nodeShape string
 
 var (
-	ShapeCircle NodeShape = "circle"
-	ShapeBox    NodeShape = "box"
+	ShapeCircle nodeShape = "circle"
+	ShapeBox    nodeShape = "box"
 )
 
-type Node struct {
+type node struct {
 	ID    int       `json:"id"`
 	Label string    `json:"label"`
-	Shape NodeShape `json:"shape"`
+	Shape nodeShape `json:"shape"`
 }
 
-type Edge struct {
+type edge struct {
 	From   int    `json:"from"`
 	To     int    `json:"to"`
 	Arrows string `json:"arrows"`
@@ -106,12 +106,12 @@ func createAdminClient(opts cmdOpts) sarama.ClusterAdmin {
 	return client
 }
 
-type UserOps struct {
+type userOps struct {
 	To   map[string]struct{}
 	From map[string]struct{}
 }
 
-func fetchUserOps(client sarama.ClusterAdmin) map[string]UserOps {
+func fetchUserOps(client sarama.ClusterAdmin) map[string]userOps {
 	// Load all topic ACLs
 	resourceAcls, err := client.ListAcls(sarama.AclFilter{
 		ResourceType:   sarama.AclResourceTopic,
@@ -123,12 +123,12 @@ func fetchUserOps(client sarama.ClusterAdmin) map[string]UserOps {
 	}
 
 	// Convert ACLs into a data structure that is easier to build a graph from
-	users := map[string]UserOps{}
+	users := map[string]userOps{}
 	for _, resAcl := range resourceAcls {
 		for _, acl := range resAcl.Acls {
 			userDn := strings.TrimPrefix(acl.Principal, "User:")
 			if _, ok := users[userDn]; !ok {
-				users[userDn] = UserOps{To: map[string]struct{}{}, From: map[string]struct{}{}}
+				users[userDn] = userOps{To: map[string]struct{}{}, From: map[string]struct{}{}}
 			}
 			u := users[userDn]
 			if acl.PermissionType == sarama.AclPermissionAllow {
@@ -149,14 +149,14 @@ func fetchUserOps(client sarama.ClusterAdmin) map[string]UserOps {
 	return users
 }
 
-func loadData(users map[string]UserOps, client sarama.ClusterAdmin) ([]Node, []Edge) {
+func loadData(users map[string]userOps, client sarama.ClusterAdmin) ([]node, []edge) {
 	// Create user nodes
-	var nodes []Node
+	var nodes []node
 	i := 0
 	userIdLookup := map[string]int{}
 	for user := range users {
 		userIdLookup[user] = i
-		nodes = append(nodes, Node{
+		nodes = append(nodes, node{
 			ID:    i,
 			Label: user,
 			Shape: ShapeBox,
@@ -172,7 +172,7 @@ func loadData(users map[string]UserOps, client sarama.ClusterAdmin) ([]Node, []E
 	topicIdLookup := map[string]int{}
 	for topic := range topics {
 		topicIdLookup[topic] = i
-		nodes = append(nodes, Node{
+		nodes = append(nodes, node{
 			ID:    i,
 			Label: topic,
 			Shape: ShapeCircle,
@@ -181,10 +181,10 @@ func loadData(users map[string]UserOps, client sarama.ClusterAdmin) ([]Node, []E
 	}
 
 	// Add all the edges
-	var edges []Edge
+	var edges []edge
 	for user, ops := range users {
 		for input := range ops.From {
-			edges = append(edges, Edge{
+			edges = append(edges, edge{
 				From:   topicIdLookup[input],
 				To:     userIdLookup[user],
 				Arrows: "to",
@@ -192,7 +192,7 @@ func loadData(users map[string]UserOps, client sarama.ClusterAdmin) ([]Node, []E
 			})
 		}
 		for output := range ops.To {
-			edges = append(edges, Edge{
+			edges = append(edges, edge{
 				From:   userIdLookup[user],
 				To:     topicIdLookup[output],
 				Arrows: "to",
@@ -208,8 +208,8 @@ func main() {
 	opts := parseFlags()
 	client := createAdminClient(opts)
 
-	var nodes []Node
-	var edges []Edge
+	var nodes []node
+	var edges []edge
 	go func() {
 		for {
 			users := fetchUserOps(client)
