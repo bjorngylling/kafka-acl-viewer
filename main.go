@@ -149,8 +149,10 @@ func fetchUserOps(client sarama.ClusterAdmin) map[string]userOps {
 	return users
 }
 
-func loadData(users map[string]userOps, client sarama.ClusterAdmin) ([]node, []edge) {
-	// Create user nodes
+func loadData(client sarama.ClusterAdmin) ([]node, []edge) {
+	users := fetchUserOps(client)
+
+	// Create user nodes, i.e. consumers and producers
 	var nodes []node
 	i := 0
 	userIdLookup := map[string]int{}
@@ -212,8 +214,7 @@ func main() {
 	var edges []edge
 	go func() {
 		for {
-			users := fetchUserOps(client)
-			nodes, edges = loadData(users, client)
+			nodes, edges = loadData(client)
 			time.Sleep(opts.fetchInterval)
 		}
 	}()
