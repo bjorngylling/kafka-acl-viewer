@@ -208,13 +208,16 @@ func loadData(client sarama.ClusterAdmin) ([]node, []edge) {
 
 func main() {
 	opts := parseFlags()
+	log.Printf("connecting to kafka brokers=%s", opts.brokers)
 	client := createAdminClient(opts)
 
 	var nodes []node
 	var edges []edge
 	go func() {
 		for {
+			start := time.Now()
 			nodes, edges = loadData(client)
+			log.Printf("fetched data from kafka, load_duration=%s", time.Now().Sub(start))
 			time.Sleep(opts.fetchInterval)
 		}
 	}()
