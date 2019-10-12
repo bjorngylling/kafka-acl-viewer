@@ -19,7 +19,7 @@ jobs:
 
     - name: Push the image to GPR
       run: |
-        docker login docker.pkg.github.com -u bjorngylling -p "${GITHUB_PACKAGE_REGISTRY_TOKEN}"
+        docker login docker.pkg.github.com -u bjorngylling -p "${GITHUB_TOKEN}"
         docker push docker.pkg.github.com/bjorngylling/kafka-acl-viewer/kafka-acl-viewer:latest
       env:
-        GITHUB_PACKAGE_REGISTRY_TOKEN: ${{ secrets.GITHUB_PACKAGE_REGISTRY_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
