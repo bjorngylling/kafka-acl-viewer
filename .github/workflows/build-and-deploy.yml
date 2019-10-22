@@ -27,6 +27,8 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       run: |
         docker login docker.pkg.github.com -u bjorngylling -p "${GITHUB_TOKEN}"
+        docker tag docker.pkg.github.com/bjorngylling/kafka-acl-viewer/kafka-acl-viewer:latest \
+                   docker.pkg.github.com/bjorngylling/kafka-acl-viewer/kafka-acl-viewer:${GITHUB_REF/refs\/tags\//}
         docker push docker.pkg.github.com/bjorngylling/kafka-acl-viewer/kafka-acl-viewer:${GITHUB_REF/refs\/tags\//}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
