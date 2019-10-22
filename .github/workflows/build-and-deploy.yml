@@ -3,6 +3,8 @@ on:
   push:
     branches:
     - master
+    tags:
+    - '*'
 
 jobs:
   build:
@@ -14,9 +16,17 @@ jobs:
     - name: Build the Docker container image
       run: docker build -t docker.pkg.github.com/bjorngylling/kafka-acl-viewer/kafka-acl-viewer:latest .
 
-    - name: Push the image to GPR
+    - name: Push latest image to GPR
       run: |
         docker login docker.pkg.github.com -u bjorngylling -p "${GITHUB_TOKEN}"
         docker push docker.pkg.github.com/bjorngylling/kafka-acl-viewer/kafka-acl-viewer:latest
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Push release tag to GPR
+      if: startsWith('refs/tags/', github.ref)
+      run: |
+        docker login docker.pkg.github.com -u bjorngylling -p "${GITHUB_TOKEN}"
+        docker push docker.pkg.github.com/bjorngylling/kafka-acl-viewer/kafka-acl-viewer:${GITHUB_REF/refs\/tags\//}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
