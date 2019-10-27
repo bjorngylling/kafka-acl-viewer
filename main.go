@@ -31,12 +31,23 @@ type nodeShape string
 var (
 	ShapeCircle nodeShape = "circle"
 	ShapeBox    nodeShape = "box"
+
+	ColorGreen = color{Background: "#6ef091", Highlight: highlight{Background: "#ccffda"}}
 )
+
+type highlight struct {
+	Background string `json:"background"`
+}
+type color struct {
+	Background string    `json:"background"`
+	Highlight  highlight `json:"highlight"`
+}
 
 type node struct {
 	ID    int       `json:"id"`
 	Label string    `json:"label"`
 	Shape nodeShape `json:"shape"`
+	Color color     `json:"color"`
 }
 
 type edge struct {
@@ -160,8 +171,9 @@ func loadData(client sarama.ClusterAdmin) ([]node, []edge) {
 		userIdLookup[user] = i
 		nodes = append(nodes, node{
 			ID:    i,
-			Label: user,
+			Label: "🤖 " + user,
 			Shape: ShapeBox,
+			Color: ColorGreen,
 		})
 		i++
 	}
@@ -176,8 +188,8 @@ func loadData(client sarama.ClusterAdmin) ([]node, []edge) {
 		topicIdLookup[topic] = i
 		nodes = append(nodes, node{
 			ID:    i,
-			Label: topic,
-			Shape: ShapeCircle,
+			Label: "🗒 " + topic,
+			Shape: ShapeBox,
 		})
 		i++
 	}
