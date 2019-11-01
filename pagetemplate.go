@@ -30,7 +30,7 @@ height: 1080px;
 new vis.Network(
 document.getElementById('mynetwork'),
 {nodes: new vis.DataSet({{.Nodes}}), edges: new vis.DataSet({{.Edges}})},
-{});
+{layout: {randomSeed: 1}});
 </script>
 
 
