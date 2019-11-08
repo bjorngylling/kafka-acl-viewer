@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/Shopify/sarama"
+	"github.com/bjorngylling/kafka-acl-viewer/visjs"
 	"reflect"
 	"testing"
 )
@@ -13,24 +14,27 @@ func Test_parseResourceAcls(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want map[string]userOps
+		want map[string]visjs.UserOps
 	}{
 		{
-			args: args{acls: []sarama.ResourceAcls{
-				{
-					Resource: topicResource("topic-consume"),
-					Acls: []*sarama.Acl{
-						acl("CN=abc", sarama.AclOperationRead),
+			name: "read_write_topic",
+			args: args{
+				acls: []sarama.ResourceAcls{
+					{
+						Resource: topicResource("topic-consume"),
+						Acls: []*sarama.Acl{
+							acl("CN=abc", sarama.AclOperationRead),
+						},
+					},
+					{
+						Resource: topicResource("topic-produce"),
+						Acls: []*sarama.Acl{
+							acl("CN=abc", sarama.AclOperationWrite),
+						},
 					},
 				},
-				{
-					Resource: topicResource("topic-produce"),
-					Acls: []*sarama.Acl{
-						acl("CN=abc", sarama.AclOperationWrite),
-					},
-				},
-			}},
-			want: map[string]userOps{"CN=abc": {
+			},
+			want: map[string]visjs.UserOps{"CN=abc": {
 				To: map[string]struct{}{
 					"topic-produce": {},
 				},

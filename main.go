@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"github.com/Shopify/sarama"
+	"github.com/bjorngylling/kafka-acl-viewer/visjs"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -24,38 +25,6 @@ type cmdOpts struct {
 	tlsKeyFile    string
 	listenAddr    string
 	fetchInterval time.Duration
-}
-
-type nodeShape string
-
-var (
-	ShapeCircle nodeShape = "circle"
-	ShapeBox    nodeShape = "box"
-
-	ColorGreen = color{Background: "#6ef091", Highlight: highlight{Background: "#ccffda"}}
-)
-
-type highlight struct {
-	Background string `json:"background"`
-}
-type color struct {
-	Background string    `json:"background"`
-	Highlight  highlight `json:"highlight"`
-}
-
-type node struct {
-	ID    int       `json:"id"`
-	Label string    `json:"label"`
-	Shape nodeShape `json:"shape"`
-	Color color     `json:"color"`
-}
-
-type edge struct {
-	From   int    `json:"from"`
-	To     int    `json:"to"`
-	Arrows string `json:"arrows"`
-	Dashes bool   `json:"dashes,omitempty"`
-	Title  string `json:"title,omitempty"`
 }
 
 type graphTemplateData struct {
@@ -123,12 +92,7 @@ func createAdminClient(opts cmdOpts) sarama.ClusterAdmin {
 	return client
 }
 
-type userOps struct {
-	To   map[string]struct{}
-	From map[string]struct{}
-}
-
-func fetchUserOps(client sarama.ClusterAdmin) map[string]userOps {
+func fetchUserOps(client sarama.ClusterAdmin) map[string]visjs.UserOps {
 	// Load all topic ACLs
 	resourceAcls, err := client.ListAcls(sarama.AclFilter{
 		ResourceType:   sarama.AclResourceTopic,
@@ -141,14 +105,14 @@ func fetchUserOps(client sarama.ClusterAdmin) map[string]userOps {
 	return parseResourceAcls(resourceAcls)
 }
 
-func parseResourceAcls(acls []sarama.ResourceAcls) map[string]userOps {
+func parseResourceAcls(acls []sarama.ResourceAcls) map[string]visjs.UserOps {
 	// Convert ACLs into a data structure that is easier to build a graph from
-	users := map[string]userOps{}
+	users := map[string]visjs.UserOps{}
 	for _, resAcl := range acls {
 		for _, acl := range resAcl.Acls {
 			userDn := strings.TrimPrefix(acl.Principal, "User:")
 			if _, ok := users[userDn]; !ok {
-				users[userDn] = userOps{To: map[string]struct{}{}, From: map[string]struct{}{}}
+				users[userDn] = visjs.UserOps{To: map[string]struct{}{}, From: map[string]struct{}{}}
 			}
 			u := users[userDn]
 			if acl.PermissionType == sarama.AclPermissionAllow {
@@ -168,64 +132,16 @@ func parseResourceAcls(acls []sarama.ResourceAcls) map[string]userOps {
 	return users
 }
 
-func loadData(client sarama.ClusterAdmin) ([]node, []edge) {
-	users := fetchUserOps(client)
-
-	// Create user nodes, i.e. consumers and producers
-	var nodes []node
-	i := 0
-	userIdLookup := map[string]int{}
-	for user := range users {
-		userIdLookup[user] = i
-		nodes = append(nodes, node{
-			ID:    i,
-			Label: "🤖 " + user,
-			Shape: ShapeBox,
-			Color: ColorGreen,
-		})
-		i++
-	}
-
-	// Create topic nodes
+func loadData(client sarama.ClusterAdmin) ([]string, map[string]visjs.UserOps) {
 	topics, err := client.ListTopics()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	topicIdLookup := map[string]int{}
-	for topic := range topics {
-		topicIdLookup[topic] = i
-		nodes = append(nodes, node{
-			ID:    i,
-			Label: "🗒 " + topic,
-			Shape: ShapeBox,
-		})
-		i++
+	keys := make([]string, 0, len(topics))
+	for k := range topics {
+		keys = append(keys, k)
 	}
-
-	// Add all the edges
-	var edges []edge
-	for user, ops := range users {
-		for input := range ops.From {
-			edges = append(edges, edge{
-				From:   topicIdLookup[input],
-				To:     userIdLookup[user],
-				Arrows: "to",
-				Dashes: false,
-				Title:  "Read",
-			})
-		}
-		for output := range ops.To {
-			edges = append(edges, edge{
-				From:   userIdLookup[user],
-				To:     topicIdLookup[output],
-				Arrows: "to",
-				Dashes: false,
-				Title:  "Write",
-			})
-		}
-	}
-
-	return nodes, edges
+	return keys, fetchUserOps(client)
 }
 
 func main() {
@@ -233,12 +149,12 @@ func main() {
 	log.Printf("connecting to kafka brokers=%s", opts.brokers)
 	client := createAdminClient(opts)
 
-	var nodes []node
-	var edges []edge
+	var nodes []visjs.Node
+	var edges []visjs.Edge
 	go func() {
 		for {
 			start := time.Now()
-			nodes, edges = loadData(client)
+			nodes, edges = visjs.CreateNetwork(loadData(client))
 			log.Printf("fetched data from kafka, load_duration=%s", time.Now().Sub(start))
 			time.Sleep(opts.fetchInterval)
 		}
