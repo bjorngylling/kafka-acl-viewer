@@ -132,10 +132,13 @@ func fetchUserOps(client sarama.ClusterAdmin) map[string]userOps {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	return parseResourceAcls(resourceAcls)
+}
 
+func parseResourceAcls(acls []sarama.ResourceAcls) map[string]userOps {
 	// Convert ACLs into a data structure that is easier to build a graph from
 	users := map[string]userOps{}
-	for _, resAcl := range resourceAcls {
+	for _, resAcl := range acls {
 		for _, acl := range resAcl.Acls {
 			userDn := strings.TrimPrefix(acl.Principal, "User:")
 			if _, ok := users[userDn]; !ok {
@@ -156,7 +159,6 @@ func fetchUserOps(client sarama.ClusterAdmin) map[string]userOps {
 			}
 		}
 	}
-
 	return users
 }
 
