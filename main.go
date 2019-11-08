@@ -97,9 +97,10 @@ func createAdminClient(opts cmdOpts) sarama.ClusterAdmin {
 func fetchUserOps(client sarama.ClusterAdmin) graph.Graph {
 	// Load all topic ACLs
 	resourceAcls, err := client.ListAcls(sarama.AclFilter{
-		ResourceType:   sarama.AclResourceTopic,
-		PermissionType: sarama.AclPermissionAny,
-		Operation:      sarama.AclOperationAny,
+		ResourceType:              sarama.AclResourceTopic,
+		PermissionType:            sarama.AclPermissionAny,
+		Operation:                 sarama.AclOperationAny,
+		ResourcePatternTypeFilter: sarama.AclPatternAny,
 	})
 	if err != nil {
 		log.Fatalln(err)

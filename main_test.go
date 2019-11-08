@@ -63,8 +63,8 @@ func acl(principal string, operation sarama.AclOperation) *sarama.Acl {
 
 func topicResource(name string) sarama.Resource {
 	return sarama.Resource{
-		ResourceType:       sarama.AclResourceTopic,
-		ResourceName:       name,
-		ResoucePatternType: sarama.AclPatternLiteral,
+		ResourceType:        sarama.AclResourceTopic,
+		ResourceName:        name,
+		ResourcePatternType: sarama.AclPatternLiteral,
 	}
 }
