@@ -33,11 +33,6 @@ type graphTemplateData struct {
 	Edges template.JS
 }
 
-type userOps struct {
-	To   map[string]struct{}
-	From map[string]struct{}
-}
-
 func parseFlags() cmdOpts {
 	opts := cmdOpts{}
 	flag.StringVar(&opts.brokers, "brokers", "", "Kafka bootstrap brokers to connect to, as a comma separated list")
