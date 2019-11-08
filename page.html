@@ -1,14 +1,5 @@
-package main
-
-import "html/template"
-
-type graphTemplateData struct {
-	Nodes template.JS
-	Edges template.JS
-}
-
-var graphTemplate = `<!doctype html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
 <title>Kafka topic layout</title>
 
@@ -33,6 +24,5 @@ document.getElementById('mynetwork'),
 {layout: {randomSeed: 1}});
 </script>
 
-
 </body>
-</html>`
+</html>

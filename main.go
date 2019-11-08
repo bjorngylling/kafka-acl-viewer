@@ -55,6 +55,12 @@ type edge struct {
 	To     int    `json:"to"`
 	Arrows string `json:"arrows"`
 	Dashes bool   `json:"dashes,omitempty"`
+	Title  string `json:"title,omitempty"`
+}
+
+type graphTemplateData struct {
+	Nodes template.JS
+	Edges template.JS
 }
 
 func parseFlags() (opts cmdOpts) {
@@ -205,6 +211,7 @@ func loadData(client sarama.ClusterAdmin) ([]node, []edge) {
 				To:     userIdLookup[user],
 				Arrows: "to",
 				Dashes: false,
+				Title:  "Read",
 			})
 		}
 		for output := range ops.To {
@@ -213,6 +220,7 @@ func loadData(client sarama.ClusterAdmin) ([]node, []edge) {
 				To:     topicIdLookup[output],
 				Arrows: "to",
 				Dashes: false,
+				Title:  "Write",
 			})
 		}
 	}
@@ -236,7 +244,10 @@ func main() {
 		}
 	}()
 
-	tmpl := template.Must(template.New("page").Parse(graphTemplate))
+	tmpl, err := template.ParseFiles("page.html")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		jsonNodes, err := json.Marshal(nodes)
