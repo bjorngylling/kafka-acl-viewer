@@ -99,7 +99,7 @@ func createAdminClient(opts cmdOpts) sarama.ClusterAdmin {
 	return client
 }
 
-func fetchUserOps(client sarama.ClusterAdmin) map[string]userOps {
+func fetchUserOps(client sarama.ClusterAdmin) graph.Graph {
 	// Load all topic ACLs
 	resourceAcls, err := client.ListAcls(sarama.AclFilter{
 		ResourceType:   sarama.AclResourceTopic,
@@ -112,73 +112,42 @@ func fetchUserOps(client sarama.ClusterAdmin) map[string]userOps {
 	return parseResourceAcls(resourceAcls)
 }
 
-func parseResourceAcls(acls []sarama.ResourceAcls) map[string]userOps {
+func parseResourceAcls(acls []sarama.ResourceAcls) graph.Graph {
 	// Convert ACLs into a data structure that is easier to build a graph from
-	users := map[string]userOps{}
+	g := graph.NewGraph()
 	for _, resAcl := range acls {
+		if _, ok := g.Nodes[resAcl.ResourceName]; !ok {
+			g.AddNode(&graph.Node{
+				Name:  resAcl.ResourceName,
+				Type:  "topic",
+				Edges: nil,
+			})
+		}
+		resource := g.Nodes[resAcl.ResourceName]
 		for _, acl := range resAcl.Acls {
 			userDn := strings.TrimPrefix(acl.Principal, "User:")
-			if _, ok := users[userDn]; !ok {
-				users[userDn] = userOps{To: map[string]struct{}{}, From: map[string]struct{}{}}
+			if _, ok := g.Nodes[userDn]; !ok {
+				g.AddNode(&graph.Node{
+					Name:  userDn,
+					Type:  "user",
+					Edges: nil,
+				})
 			}
-			u := users[userDn]
+			u := g.Nodes[userDn]
 			if acl.PermissionType == sarama.AclPermissionAllow {
 				switch acl.Operation {
 				case sarama.AclOperationRead:
-					u.From[resAcl.ResourceName] = struct{}{}
+					resource.AddEdge(&graph.Edge{Target: u.Name, Operation: "Read"})
 				case sarama.AclOperationWrite:
-					u.To[resAcl.ResourceName] = struct{}{}
+					u.AddEdge(&graph.Edge{Target: resource.Name, Operation: "Write"})
 				case sarama.AclOperationAll:
 				case sarama.AclOperationAny:
-					u.From[resAcl.ResourceName] = struct{}{}
-					u.To[resAcl.ResourceName] = struct{}{}
+					resource.AddEdge(&graph.Edge{Target: u.Name, Operation: "Read"})
+					u.AddEdge(&graph.Edge{Target: resource.Name, Operation: "Write"})
 				}
 			}
 		}
 	}
-	return users
-}
-
-func loadData(client sarama.ClusterAdmin) graph.Graph {
-	topics, err := client.ListTopics()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	keys := make([]string, 0, len(topics))
-	for k := range topics {
-		keys = append(keys, k)
-	}
-	return createGraph(keys, fetchUserOps(client))
-}
-
-func createGraph(topics []string, ops map[string]userOps) graph.Graph {
-	g := graph.NewGraph()
-
-	for _, t := range topics {
-		g.AddNode(&graph.Node{
-			Name:  t,
-			Edges: []*graph.Edge{},
-			Type:  "topic",
-		})
-	}
-
-	for user := range ops {
-		g.AddNode(&graph.Node{
-			Name:  user,
-			Edges: []*graph.Edge{},
-			Type:  "user",
-		})
-	}
-
-	for user, op := range ops {
-		for src := range op.From {
-			g.Nodes[src].AddEdge(&graph.Edge{Target: user, Operation: "Read"})
-		}
-		for target := range op.To {
-			g.Nodes[user].AddEdge(&graph.Edge{Target: target, Operation: "Write"})
-		}
-	}
-
 	return g
 }
 
@@ -192,7 +161,7 @@ func main() {
 	go func() {
 		for {
 			start := time.Now()
-			nodes, edges = visjs.CreateNetwork(loadData(client))
+			nodes, edges = visjs.CreateNetwork(fetchUserOps(client))
 			log.Printf("fetched data from kafka, load_duration=%s", time.Now().Sub(start))
 			time.Sleep(opts.fetchInterval)
 		}
