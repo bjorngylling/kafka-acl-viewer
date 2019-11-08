@@ -1,15 +1,16 @@
 package visjs
 
 import (
+	"github.com/bjorngylling/kafka-acl-viewer/graph"
 	"reflect"
 	"testing"
 )
 
 func Test_createNetwork(t *testing.T) {
 	type args struct {
-		topics         []string
-		userOperations map[string]UserOps
+		graph graph.Graph
 	}
+
 	tests := []struct {
 		name      string
 		args      args
@@ -19,25 +20,29 @@ func Test_createNetwork(t *testing.T) {
 		{
 			name: "basic",
 			args: args{
-				topics: []string{"topic-1"},
-				userOperations: map[string]UserOps{
-					"CN=abc": {
-						To: map[string]struct{}{},
-						From: map[string]struct{}{
-							"topic-1": {},
+				graph: graph.Graph{
+					Nodes: map[string]*graph.Node{
+						"user-1": {
+							Name: "user-1",
+							Type: "user",
+						},
+						"topic-1": {
+							Name:  "topic-1",
+							Edges: []*graph.Edge{{Target: "user-1", Operation: "Read"}},
+							Type:  "topic",
 						},
 					},
 				},
 			},
 			wantNodes: []Node{
 				{
-					ID:    0,
-					Label: "🤖 CN=abc",
+					ID:    "user-1",
+					Label: "🤖 user-1",
 					Shape: "box",
 					Color: color{"#6ef091", highlight{Background: "#ccffda"}},
 				},
 				{
-					ID:    1,
+					ID:    "topic-1",
 					Label: "🗒 topic-1",
 					Shape: "box",
 					Color: color{"", highlight{""}},
@@ -45,8 +50,8 @@ func Test_createNetwork(t *testing.T) {
 			},
 			wantEdges: []Edge{
 				{
-					From:   1,
-					To:     0,
+					From:   "topic-1",
+					To:     "user-1",
 					Arrows: "to",
 					Dashes: false,
 					Title:  "Read",
@@ -56,7 +61,7 @@ func Test_createNetwork(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := CreateNetwork(tt.args.topics, tt.args.userOperations)
+			got, got1 := CreateNetwork(tt.args.graph)
 			if !reflect.DeepEqual(got, tt.wantNodes) {
 				t.Errorf("createNetwork() got = %v, wantNodes %v", got, tt.wantNodes)
 			}

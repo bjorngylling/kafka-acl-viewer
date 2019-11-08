@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/Shopify/sarama"
-	"github.com/bjorngylling/kafka-acl-viewer/visjs"
+	"github.com/bjorngylling/kafka-acl-viewer/graph"
 	"reflect"
 	"testing"
 )
@@ -14,7 +14,7 @@ func Test_parseResourceAcls(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want map[string]visjs.UserOps
+		want map[string]userOps
 	}{
 		{
 			name: "read_write_topic",
@@ -34,7 +34,7 @@ func Test_parseResourceAcls(t *testing.T) {
 					},
 				},
 			},
-			want: map[string]visjs.UserOps{"CN=abc": {
+			want: map[string]userOps{"CN=abc": {
 				To: map[string]struct{}{
 					"topic-produce": {},
 				},
@@ -67,5 +67,59 @@ func topicResource(name string) sarama.Resource {
 		ResourceType:       sarama.AclResourceTopic,
 		ResourceName:       name,
 		ResoucePatternType: sarama.AclPatternLiteral,
+	}
+}
+
+func Test_createGraph(t *testing.T) {
+	type args struct {
+		topics []string
+		ops    map[string]userOps
+	}
+	tests := []struct {
+		name string
+		args args
+		want graph.Graph
+	}{
+		{
+			name: "read_topic",
+			args: args{
+				topics: []string{"topic-1"},
+				ops: map[string]userOps{"user-1": {
+					From: map[string]struct{}{
+						"topic-1": {},
+					}},
+				},
+			},
+			want: graph.Graph{
+				Nodes: map[string]*graph.Node{
+					"user-1":  {Name: "user-1", Edges: []*graph.Edge{}, Type: "user"},
+					"topic-1": {Name: "topic-1", Edges: []*graph.Edge{{Target: "user-1", Operation: "Read"}}, Type: "topic"},
+				},
+			},
+		},
+		{
+			name: "write_topic",
+			args: args{
+				topics: []string{"topic-1"},
+				ops: map[string]userOps{"user-1": {
+					To: map[string]struct{}{
+						"topic-1": {},
+					}},
+				},
+			},
+			want: graph.Graph{
+				Nodes: map[string]*graph.Node{
+					"user-1":  {Name: "user-1", Edges: []*graph.Edge{{Target: "topic-1", Operation: "Write"}}, Type: "user"},
+					"topic-1": {Name: "topic-1", Edges: []*graph.Edge{}, Type: "topic"},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := createGraph(tt.args.topics, tt.args.ops); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("createGraph() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

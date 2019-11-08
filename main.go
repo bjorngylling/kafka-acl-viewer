@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"github.com/Shopify/sarama"
+	"github.com/bjorngylling/kafka-acl-viewer/graph"
 	"github.com/bjorngylling/kafka-acl-viewer/visjs"
 	"html/template"
 	"io/ioutil"
@@ -30,6 +31,11 @@ type cmdOpts struct {
 type graphTemplateData struct {
 	Nodes template.JS
 	Edges template.JS
+}
+
+type userOps struct {
+	To   map[string]struct{}
+	From map[string]struct{}
 }
 
 func parseFlags() cmdOpts {
@@ -93,7 +99,7 @@ func createAdminClient(opts cmdOpts) sarama.ClusterAdmin {
 	return client
 }
 
-func fetchUserOps(client sarama.ClusterAdmin) map[string]visjs.UserOps {
+func fetchUserOps(client sarama.ClusterAdmin) map[string]userOps {
 	// Load all topic ACLs
 	resourceAcls, err := client.ListAcls(sarama.AclFilter{
 		ResourceType:   sarama.AclResourceTopic,
@@ -106,14 +112,14 @@ func fetchUserOps(client sarama.ClusterAdmin) map[string]visjs.UserOps {
 	return parseResourceAcls(resourceAcls)
 }
 
-func parseResourceAcls(acls []sarama.ResourceAcls) map[string]visjs.UserOps {
+func parseResourceAcls(acls []sarama.ResourceAcls) map[string]userOps {
 	// Convert ACLs into a data structure that is easier to build a graph from
-	users := map[string]visjs.UserOps{}
+	users := map[string]userOps{}
 	for _, resAcl := range acls {
 		for _, acl := range resAcl.Acls {
 			userDn := strings.TrimPrefix(acl.Principal, "User:")
 			if _, ok := users[userDn]; !ok {
-				users[userDn] = visjs.UserOps{To: map[string]struct{}{}, From: map[string]struct{}{}}
+				users[userDn] = userOps{To: map[string]struct{}{}, From: map[string]struct{}{}}
 			}
 			u := users[userDn]
 			if acl.PermissionType == sarama.AclPermissionAllow {
@@ -133,7 +139,7 @@ func parseResourceAcls(acls []sarama.ResourceAcls) map[string]visjs.UserOps {
 	return users
 }
 
-func loadData(client sarama.ClusterAdmin) ([]string, map[string]visjs.UserOps) {
+func loadData(client sarama.ClusterAdmin) graph.Graph {
 	topics, err := client.ListTopics()
 	if err != nil {
 		log.Fatalln(err)
@@ -142,7 +148,38 @@ func loadData(client sarama.ClusterAdmin) ([]string, map[string]visjs.UserOps) {
 	for k := range topics {
 		keys = append(keys, k)
 	}
-	return keys, fetchUserOps(client)
+	return createGraph(keys, fetchUserOps(client))
+}
+
+func createGraph(topics []string, ops map[string]userOps) graph.Graph {
+	g := graph.NewGraph()
+
+	for _, t := range topics {
+		g.AddNode(&graph.Node{
+			Name:  t,
+			Edges: []*graph.Edge{},
+			Type:  "topic",
+		})
+	}
+
+	for user := range ops {
+		g.AddNode(&graph.Node{
+			Name:  user,
+			Edges: []*graph.Edge{},
+			Type:  "user",
+		})
+	}
+
+	for user, op := range ops {
+		for src := range op.From {
+			g.Nodes[src].AddEdge(&graph.Edge{Target: user, Operation: "Read"})
+		}
+		for target := range op.To {
+			g.Nodes[user].AddEdge(&graph.Edge{Target: target, Operation: "Write"})
+		}
+	}
+
+	return g
 }
 
 func main() {

@@ -1,10 +1,13 @@
 package visjs
 
+import (
+	"github.com/bjorngylling/kafka-acl-viewer/graph"
+)
+
 type nodeShape string
 
 var (
-	ShapeCircle nodeShape = "circle"
-	ShapeBox    nodeShape = "box"
+	ShapeBox nodeShape = "box"
 
 	ColorGreen = color{Background: "#6ef091", Highlight: highlight{Background: "#ccffda"}}
 )
@@ -18,72 +21,48 @@ type color struct {
 }
 
 type Node struct {
-	ID    int       `json:"id"`
+	ID    string    `json:"id"`
 	Label string    `json:"label"`
 	Shape nodeShape `json:"shape"`
 	Color color     `json:"color"`
 }
 
 type Edge struct {
-	From   int    `json:"from"`
-	To     int    `json:"to"`
+	From   string `json:"from"`
+	To     string `json:"to"`
 	Arrows string `json:"arrows"`
 	Dashes bool   `json:"dashes,omitempty"`
 	Title  string `json:"title,omitempty"`
 }
 
-type UserOps struct {
-	To   map[string]struct{}
-	From map[string]struct{}
-}
-
-func CreateNetwork(topics []string, userOperations map[string]UserOps) ([]Node, []Edge) {
-	// Create user nodes, i.e. consumers and producers
+func CreateNetwork(graph graph.Graph) ([]Node, []Edge) {
 	var nodes []Node
-	i := 0
-	userIdLookup := map[string]int{}
-	for user := range userOperations {
-		userIdLookup[user] = i
-		nodes = append(nodes, Node{
-			ID:    i,
-			Label: "🤖 " + user,
-			Shape: ShapeBox,
-			Color: ColorGreen,
-		})
-		i++
-	}
-
-	// Create topic nodes
-	topicIdLookup := map[string]int{}
-	for _, topic := range topics {
-		topicIdLookup[topic] = i
-		nodes = append(nodes, Node{
-			ID:    i,
-			Label: "🗒 " + topic,
-			Shape: ShapeBox,
-		})
-		i++
-	}
-
-	// Add all the edges
 	var edges []Edge
-	for user, ops := range userOperations {
-		for input := range ops.From {
-			edges = append(edges, Edge{
-				From:   topicIdLookup[input],
-				To:     userIdLookup[user],
-				Arrows: "to",
-				Dashes: false,
-				Title:  "Read",
-			})
+
+	for id, node := range graph.Nodes {
+		labelPrefix := ""
+		color := color{}
+		switch node.Type {
+		case "user":
+			labelPrefix = "🤖 "
+			color = ColorGreen
+		case "topic":
+			labelPrefix = "🗒 "
 		}
-		for output := range ops.To {
+		nodes = append(nodes, Node{
+			ID:    id,
+			Label: labelPrefix + node.Name,
+			Shape: ShapeBox,
+			Color: color,
+		})
+
+		for _, edge := range node.Edges {
 			edges = append(edges, Edge{
-				From:   userIdLookup[user],
-				To:     topicIdLookup[output],
+				From:   id,
+				To:     edge.Target,
 				Arrows: "to",
 				Dashes: false,
-				Title:  "Write",
+				Title:  edge.Operation,
 			})
 		}
 	}
