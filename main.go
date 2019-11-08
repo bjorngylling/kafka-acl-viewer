@@ -32,7 +32,8 @@ type graphTemplateData struct {
 	Edges template.JS
 }
 
-func parseFlags() (opts cmdOpts) {
+func parseFlags() cmdOpts {
+	opts := cmdOpts{}
 	flag.StringVar(&opts.brokers, "brokers", "", "Kafka bootstrap brokers to connect to, as a comma separated list")
 	flag.StringVar(&opts.version, "version", "2.2.0", "Kafka cluster version")
 	flag.BoolVar(&opts.verbose, "verbose", false, "Sarama logging")
@@ -51,7 +52,7 @@ func parseFlags() (opts cmdOpts) {
 		sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 	}
 
-	return
+	return opts
 }
 
 /**
