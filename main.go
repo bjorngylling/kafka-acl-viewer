@@ -56,9 +56,7 @@ func parseFlags() cmdOpts {
 	return opts
 }
 
-/**
- * Construct a new admin client connected to the kafka cluster.
- */
+// Construct a new admin client connected to the kafka cluster.
 func createAdminClient(opts cmdOpts) sarama.ClusterAdmin {
 	config := sarama.NewConfig()
 
@@ -94,8 +92,7 @@ func createAdminClient(opts cmdOpts) sarama.ClusterAdmin {
 	return client
 }
 
-func fetchUserOps(client sarama.ClusterAdmin) graph.Graph {
-	// Load all topic ACLs
+func loadAclGraph(client sarama.ClusterAdmin) graph.Graph {
 	resourceAcls, err := client.ListAcls(sarama.AclFilter{
 		ResourceType:              sarama.AclResourceTopic,
 		PermissionType:            sarama.AclPermissionAny,
@@ -109,7 +106,6 @@ func fetchUserOps(client sarama.ClusterAdmin) graph.Graph {
 }
 
 func parseResourceAcls(acls []sarama.ResourceAcls) graph.Graph {
-	// Convert ACLs into a data structure that is easier to build a graph from
 	g := graph.NewGraph()
 	for _, resAcl := range acls {
 		if _, ok := g.Nodes[resAcl.ResourceName]; !ok {
@@ -157,7 +153,7 @@ func main() {
 	go func() {
 		for {
 			start := time.Now()
-			nodes, edges = visjs.CreateNetwork(fetchUserOps(client))
+			nodes, edges = visjs.CreateNetwork(loadAclGraph(client))
 			log.Printf("fetched data from kafka, load_duration=%s", time.Now().Sub(start))
 			time.Sleep(opts.fetchInterval)
 		}

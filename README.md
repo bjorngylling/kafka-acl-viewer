@@ -1,4 +1,6 @@
 # Kafka ACL Viewer
+[![Go Report Card](https://goreportcard.com/badge/github.com/bjorngylling/kafka-acl-viewer)](https://goreportcard.com/report/github.com/bjorngylling/kafka-acl-viewer) [![Build](https://github.com/bjorngylling/kafka-acl-viewer/workflows/build/badge.svg)](https://github.com/bjorngylling/kafka-acl-viewer/actions)
+
 An application to display your Kafka cluster ACLs as a graph of topics and consumers/producers. It allows you to
 visualise how events flow within your cluster in a simple way. See the picture below for an example of how it can look.
 
