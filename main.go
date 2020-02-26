@@ -94,7 +94,7 @@ func createAdminClient(opts cmdOpts) sarama.ClusterAdmin {
 
 func loadAclGraph(client sarama.ClusterAdmin) graph.Graph {
 	resourceAcls, err := client.ListAcls(sarama.AclFilter{
-		ResourceType:              sarama.AclResourceTopic,
+		ResourceType:              sarama.AclResourceAny,
 		PermissionType:            sarama.AclPermissionAny,
 		Operation:                 sarama.AclOperationAny,
 		ResourcePatternTypeFilter: sarama.AclPatternAny,
@@ -106,41 +106,73 @@ func loadAclGraph(client sarama.ClusterAdmin) graph.Graph {
 }
 
 func parseResourceAcls(acls []sarama.ResourceAcls) graph.Graph {
-	g := graph.NewGraph()
+	aclGraph := graph.NewGraph()
 	for _, resAcl := range acls {
-		if _, ok := g.Nodes[resAcl.ResourceName]; !ok {
-			g.AddNode(&graph.Node{
-				Name:  resAcl.ResourceName,
-				Type:  "topic",
+		resourceName := resAcl.ResourceName
+		resourceType := "topic"
+		if resAcl.ResourceType == sarama.AclResourceGroup {
+			continue // we dont display consumer groups at this point
+		}
+		if resAcl.ResourceType == sarama.AclResourceCluster {
+			resourceName = "Kafka Cluster"
+			resourceType = "cluster"
+		}
+		if _, ok := aclGraph.Nodes[resourceName]; !ok {
+			aclGraph.AddNode(&graph.Node{
+				Name:  resourceName,
+				Type:  resourceType,
 				Edges: nil,
 			})
 		}
-		resource := g.Nodes[resAcl.ResourceName]
+		resource := aclGraph.Nodes[resourceName]
 		for _, acl := range resAcl.Acls {
 			userDn := strings.TrimPrefix(acl.Principal, "User:")
-			if _, ok := g.Nodes[userDn]; !ok {
-				g.AddNode(&graph.Node{
+			if _, ok := aclGraph.Nodes[userDn]; !ok {
+				aclGraph.AddNode(&graph.Node{
 					Name:  userDn,
 					Type:  "user",
 					Edges: nil,
 				})
 			}
-			u := g.Nodes[userDn]
+			user := aclGraph.Nodes[userDn]
 			if acl.PermissionType == sarama.AclPermissionAllow {
-				switch acl.Operation {
-				case sarama.AclOperationRead:
-					resource.AddEdge(&graph.Edge{Target: u.Name, Operation: "Read"})
-				case sarama.AclOperationWrite:
-					u.AddEdge(&graph.Edge{Target: resource.Name, Operation: "Write"})
-				case sarama.AclOperationAll:
-				case sarama.AclOperationAny:
-					resource.AddEdge(&graph.Edge{Target: u.Name, Operation: "Read"})
-					u.AddEdge(&graph.Edge{Target: resource.Name, Operation: "Write"})
+				if resAcl.ResourceType == sarama.AclResourceCluster {
+					switch acl.Operation {
+					case sarama.AclOperationDescribe:
+						resource.AddEdge(&graph.Edge{Target: user.Name, Operation: stringify(acl.Operation)})
+					case sarama.AclOperationAlter:
+						user.AddEdge(&graph.Edge{Target: resourceName, Operation: stringify(acl.Operation)})
+					}
+				} else if resAcl.ResourceType == sarama.AclResourceTopic {
+					switch acl.Operation {
+					case sarama.AclOperationRead:
+						resource.AddEdge(&graph.Edge{Target: user.Name, Operation: stringify(acl.Operation)})
+					case sarama.AclOperationWrite:
+						user.AddEdge(&graph.Edge{Target: resourceName, Operation: stringify(acl.Operation)})
+					case sarama.AclOperationAll:
+					case sarama.AclOperationAny:
+						resource.AddEdge(&graph.Edge{Target: user.Name, Operation: "Read"})
+						user.AddEdge(&graph.Edge{Target: resourceName, Operation: "Write"})
+					}
 				}
 			}
 		}
 	}
-	return g
+	return aclGraph
+}
+
+func stringify(op sarama.AclOperation) string {
+	switch op {
+	case sarama.AclOperationAlter:
+		return "Alter"
+	case sarama.AclOperationDescribe:
+		return "Describe"
+	case sarama.AclOperationRead:
+		return "Read"
+	case sarama.AclOperationWrite:
+		return "Write"
+	}
+	return ""
 }
 
 func main() {

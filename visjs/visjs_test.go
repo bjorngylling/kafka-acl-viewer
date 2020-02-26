@@ -24,15 +24,8 @@ func Test_createNetwork(t *testing.T) {
 			args: args{
 				graph: graph.Graph{
 					Nodes: map[string]*graph.Node{
-						"user-1": {
-							Name: "user-1",
-							Type: "user",
-						},
-						"topic-1": {
-							Name:  "topic-1",
-							Edges: []*graph.Edge{{Target: "user-1", Operation: "Read"}},
-							Type:  "topic",
-						},
+						"user-1":  {"user-1", "user", nil},
+						"topic-1": {"topic-1", "topic", []*graph.Edge{{Target: "user-1", Operation: "Read"}}},
 					},
 				},
 			},
@@ -50,15 +43,33 @@ func Test_createNetwork(t *testing.T) {
 					Color: color{"", highlight{""}},
 				},
 			},
-			wantEdges: []Edge{
-				{
-					From:   "topic-1",
-					To:     "user-1",
-					Arrows: "to",
-					Dashes: false,
-					Title:  "Read",
+			wantEdges: []Edge{{From: "topic-1", To: "user-1", Arrows: "to", Dashes: false, Title: "Read"}},
+		},
+		{
+			name: "cluster",
+			args: args{
+				graph: graph.Graph{
+					Nodes: map[string]*graph.Node{
+						"user-1":        {"user-1", "user", nil},
+						"Kafka Cluster": {"Kafka Cluster", "cluster", []*graph.Edge{{Target: "user-1", Operation: "Describe"}}},
+					},
 				},
 			},
+			wantNodes: []Node{
+				{
+					ID:    "user-1",
+					Label: "🤖 user-1",
+					Shape: "box",
+					Color: color{"#6ef091", highlight{Background: "#ccffda"}},
+				},
+				{
+					ID:    "Kafka Cluster",
+					Label: "Kafka Cluster",
+					Shape: "box",
+					Color: color{"", highlight{""}},
+				},
+			},
+			wantEdges: []Edge{{From: "Kafka Cluster", To: "user-1", Arrows: "to", Dashes: false, Title: "Describe"}},
 		},
 	}
 	for _, tt := range tests {

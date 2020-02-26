@@ -42,6 +42,26 @@ func Test_parseResourceAcls(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "describe_alter_cluster",
+			args: args{
+				acls: []sarama.ResourceAcls{
+					{
+						Resource: sarama.Resource{ResourceType: sarama.AclResourceCluster},
+						Acls: []*sarama.Acl{
+							acl("user-1", sarama.AclOperationDescribe),
+							acl("user-1", sarama.AclOperationAlter),
+						},
+					},
+				},
+			},
+			want: graph.Graph{
+				Nodes: map[string]*graph.Node{
+					"Kafka Cluster": {Name: "Kafka Cluster", Edges: []*graph.Edge{{Target: "user-1", Operation: "Describe"}}, Type: "cluster"},
+					"user-1":        {Name: "user-1", Edges: []*graph.Edge{{Target: "Kafka Cluster", Operation: "Alter"}}, Type: "user"},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
