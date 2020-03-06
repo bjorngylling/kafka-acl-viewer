@@ -12,6 +12,10 @@ spec:
       tls:
         authentication:
           type: tls
+      external:
+        type: nodeport
+        authentication:
+          type: tls
     authorization:
       type: simple
     config:
