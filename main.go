@@ -35,13 +35,13 @@ type graphTemplateData struct {
 
 func parseFlags() cmdOpts {
 	opts := cmdOpts{}
-	flag.StringVar(&opts.brokers, "brokers", "", "Kafka bootstrap brokers to connect to, as a comma separated list")
-	flag.StringVar(&opts.version, "version", "2.2.0", "Kafka cluster version")
+	flag.StringVar(&opts.brokers, "brokers", lookupEnvOrString("KAFKA_URL", ""), "Kafka bootstrap brokers to connect to, as a comma separated list")
+	flag.StringVar(&opts.version, "version", lookupEnvOrString("KAFKA_VERSION", "2.2.0"), "Kafka cluster version")
 	flag.BoolVar(&opts.verbose, "verbose", false, "Sarama logging")
-	flag.StringVar(&opts.tlsCAFile, "ca-file", "", "Certificate authority file")
-	flag.StringVar(&opts.tlsCertFile, "cert-file", "", "Client certificate file")
-	flag.StringVar(&opts.tlsKeyFile, "key-file", "", "Client key file")
-	flag.StringVar(&opts.listenAddr, "listen-addr", ":8080", "Address to listen on for the web interface")
+	flag.StringVar(&opts.tlsCAFile, "ca-file", lookupEnvOrString("CA_FILE", ""), "Certificate authority file")
+	flag.StringVar(&opts.tlsCertFile, "cert-file", lookupEnvOrString("CERT_FILE", ""), "Client certificate file")
+	flag.StringVar(&opts.tlsKeyFile, "key-file", lookupEnvOrString("KEY_FILE", ""), "Client key file")
+	flag.StringVar(&opts.listenAddr, "listen-addr", lookupEnvOrString("LISTEN_ADDR", ":8080"), "Address to listen on for the web interface")
 	flag.DurationVar(&opts.fetchInterval, "fetch-interval", 10*time.Minute, "The interval at which to update the ACLs from Kafka")
 	flag.Parse()
 
@@ -54,6 +54,13 @@ func parseFlags() cmdOpts {
 	}
 
 	return opts
+}
+
+func lookupEnvOrString(key string, defaultVal string) string {
+	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return defaultVal
 }
 
 // Construct a new admin client connected to the kafka cluster.

@@ -26,13 +26,15 @@ spec:
           - name: kafka-cluster-cert
             mountPath: "/kafka-ca-certs"
             readOnly: true
-        args: [
-          "--brokers", "my-cluster-kafka-bootstrap:9093",
-          "--ca-file", "/kafka-ca-certs/ca.crt",
-          "--cert-file", "/kafka-client-certs/user.crt",
-          "--key-file", "/kafka-client-certs/user.key",
-          "--fetch-interval", "20s"
-        ]
+        env:
+          - name: KAFKA_URL
+            value: "my-cluster-kafka-bootstrap:9093"
+          - name: CA_FILE
+            value: "/kafka-ca-certs/ca.crt"
+          - name: CERT_FILE
+            value: "/kafka-client-certs/user.crt"
+          - name: KEY_FILE
+            value: "/kafka-client-certs/user.key"
       volumes:
         - name: kafka-acl-viewer-certs
           secret:
