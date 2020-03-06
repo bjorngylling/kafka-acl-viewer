@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-acl-viewer
+  labels:
+    app: kafka-acl-viewer
+spec:
+  selector:
+    matchLabels:
+      app: kafka-acl-viewer
+  template:
+    metadata:
+      labels:
+        app: kafka-acl-viewer
+    spec:
+      containers:
+      - name: kafka-acl-viewer
+        image: kafka-acl-viewer:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+          - name: kafka-acl-viewer-certs
+            mountPath: "/kafka-client-certs"
+            readOnly: true
+          - name: kafka-cluster-cert
+            mountPath: "/kafka-ca-certs"
+            readOnly: true
+        args: [
+          "--brokers", "my-cluster-kafka-bootstrap:9093",
+          "--ca-file", "/kafka-ca-certs/ca.crt",
+          "--cert-file", "/kafka-client-certs/user.crt",
+          "--key-file", "/kafka-client-certs/user.key",
+          "--fetch-interval", "20s"
+        ]
+      volumes:
+        - name: kafka-acl-viewer-certs
+          secret:
+            secretName: kafka-acl-viewer
+            items:
+              - key: user.crt
+                path: user.crt
+              - key: user.key
+                path: user.key
+        - name: kafka-cluster-cert
+          secret:
+            secretName: my-cluster-cluster-ca-cert

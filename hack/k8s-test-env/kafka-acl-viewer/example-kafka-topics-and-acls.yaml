@@ -1,0 +1,173 @@
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: sales
+  labels:
+    strimzi.io/cluster: my-cluster
+spec:
+  partitions: 10
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: users
+  labels:
+    strimzi.io/cluster: my-cluster
+spec:
+  partitions: 10
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shipments
+  labels:
+    strimzi.io/cluster: my-cluster
+spec:
+  partitions: 10
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaUser
+metadata:
+  name: webshop
+  labels:
+    strimzi.io/cluster: my-cluster
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      # In group webshop
+      - resource:
+          type: group
+          name: webshop
+          patternType: literal
+        operation: Read
+        host: "*"
+      # Consume shipments
+      - resource:
+          type: topic
+          name: shipments
+          patternType: literal
+        operation: Read
+        host: "*"
+      - resource:
+          type: topic
+          name: shipments
+          patternType: literal
+        operation: Describe
+        host: "*"
+      # Produce to sales
+      - resource:
+          type: topic
+          name: sales
+          patternType: literal
+        operation: Write
+        host: "*"
+      - resource:
+          type: topic
+          name: sales
+          patternType: literal
+        operation: Describe
+        host: "*"
+      # Consume users
+      - resource:
+          type: topic
+          name: users
+          patternType: literal
+        operation: Read
+        host: "*"
+      - resource:
+          type: topic
+          name: users
+          patternType: literal
+        operation: Describe
+        host: "*"
+      # Produce to users
+      - resource:
+          type: topic
+          name: users
+          patternType: literal
+        operation: Write
+        host: "*"
+      - resource:
+          type: topic
+          name: users
+          patternType: literal
+        operation: Describe
+        host: "*"
+---
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaUser
+metadata:
+  name: shipment-api
+  labels:
+    strimzi.io/cluster: my-cluster
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      # Produce to shipments
+      - resource:
+          type: topic
+          name: shipments
+          patternType: literal
+        operation: Write
+        host: "*"
+      - resource:
+          type: topic
+          name: shipments
+          patternType: literal
+        operation: Describe
+        host: "*"
+---
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaUser
+metadata:
+  name: order-confirmation-mail
+  labels:
+    strimzi.io/cluster: my-cluster
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      # In group order-confirmation-mail
+      - resource:
+          type: group
+          name: order-confirmation-mail
+          patternType: literal
+        operation: Read
+        host: "*"
+      # Consume users
+      - resource:
+          type: topic
+          name: users
+          patternType: literal
+        operation: Read
+        host: "*"
+      - resource:
+          type: topic
+          name: users
+          patternType: literal
+        operation: Describe
+        host: "*"
+      # Consume users
+      - resource:
+          type: topic
+          name: sales
+          patternType: literal
+        operation: Read
+        host: "*"
+      - resource:
+          type: topic
+          name: sales
+          patternType: literal
+        operation: Describe
+        host: "*"
