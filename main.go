@@ -42,7 +42,7 @@ func parseFlags() cmdOpts {
 	flag.StringVar(&opts.tlsCertFile, "cert-file", lookupEnvOrString("CERT_FILE", ""), "Client certificate file")
 	flag.StringVar(&opts.tlsKeyFile, "key-file", lookupEnvOrString("KEY_FILE", ""), "Client key file")
 	flag.StringVar(&opts.listenAddr, "listen-addr", lookupEnvOrString("LISTEN_ADDR", ":8080"), "Address to listen on for the web interface")
-	flag.DurationVar(&opts.fetchInterval, "fetch-interval", 10*time.Minute, "The interval at which to update the ACLs from Kafka")
+	flag.DurationVar(&opts.fetchInterval, "fetch-interval", lookupEnvOrDuration("FETCH_INTERVAL", 10*time.Minute), "The interval at which to update the ACLs from Kafka")
 	flag.Parse()
 
 	if len(opts.brokers) == 0 {
@@ -59,6 +59,17 @@ func parseFlags() cmdOpts {
 func lookupEnvOrString(key string, defaultVal string) string {
 	if val, ok := os.LookupEnv(key); ok {
 		return val
+	}
+	return defaultVal
+}
+
+func lookupEnvOrDuration(key string, defaultVal time.Duration) time.Duration {
+	if val, ok := os.LookupEnv(key); ok {
+		dur, err := time.ParseDuration(val)
+		if err != nil {
+			log.Fatalf("parse duration from env[%s] failed: %v", key, err)
+		}
+		return dur
 	}
 	return defaultVal
 }

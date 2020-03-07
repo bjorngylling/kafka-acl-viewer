@@ -35,6 +35,8 @@ spec:
             value: "/kafka-client-certs/user.crt"
           - name: KEY_FILE
             value: "/kafka-client-certs/user.key"
+          - name: FETCH_INTERVAL
+            value: "10s"
       volumes:
         - name: kafka-acl-viewer-certs
           secret:
