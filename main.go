@@ -177,11 +177,13 @@ func main() {
 		}
 	}()
 
-	tmpl, err := template.ParseFiles("page.html")
+	tmpl, err := template.ParseFiles("web/page.html")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	fileServer := http.FileServer(http.Dir("web/static"))
+	http.Handle("/static/", http.StripPrefix(strings.TrimRight("/static/", "/"), fileServer))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		jsonNodes, err := json.Marshal(nodes)
 		if err != nil {
