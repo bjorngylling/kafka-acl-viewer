@@ -42,12 +42,14 @@ func Test_createNetwork(t *testing.T) {
 					Label: "🤖 user-1",
 					Shape: "box",
 					Color: color{"#6ef091", highlight{Background: "#ccffda"}},
+					Type:  "user",
 				},
 				{
 					ID:    "topic-1",
 					Label: "🗒 topic-1",
 					Shape: "box",
 					Color: color{"", highlight{""}},
+					Type:  "topic",
 				},
 			},
 			wantEdges: []Edge{

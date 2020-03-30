@@ -1,4 +1,14 @@
-#my-network {
-    width: 1600px;
-    height: 1080px;
+.wrapper {
+    display: grid;
+    grid-template-columns: 4fr 1fr;
+
+    height: 100vh;
+}
+
+.sidebar {
+    box-shadow: 0 0 12px #888;
+}
+
+.sidebar > div {
+    padding: 1em;
 }

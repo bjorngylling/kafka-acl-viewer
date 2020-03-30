@@ -1,32 +1,66 @@
 <!doctype html>
 <html lang="en">
 <head>
-<title>Kafka topic layout</title>
+    <title>Kafka topic layout</title>
 
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.css" rel="stylesheet" type="text/css" />
-<link href="static/style.css" rel="stylesheet" type="text/css" />
+    <script type="text/javascript" src="https://unpkg.com/vis-network@7.4.2/standalone/umd/vis-network.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/slim-select/1.25.0/slimselect.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/slim-select/1.25.0/slimselect.min.css">
+
+    <link href="https://unpkg.com/sanitize.css" rel="stylesheet" />
+    <link href="https://unpkg.com/sanitize.css/typography.css" rel="stylesheet" />
+
+    <link href="static/style.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
+    <div class="wrapper">
+        <div id="network"></div>
+        <div class="sidebar">
+            <div>
+                <label for="topics">Topics</label>
+                <select id="topics" multiple></select>
+                <label for="users">Users</label>
+                <select id="users" multiple></select>
+            </div>
+        </div>
+    </div>
 
-<div id="my-network"></div>
-
-<script type="text/javascript">
-const network = new vis.Network(
-    document.getElementById('my-network'),
-    {nodes: new vis.DataSet({{.Nodes}}), edges: new vis.DataSet({{.Edges}})},
-    {layout: {randomSeed: 1}});
-network.on("selectEdge", function (params) {
-    params.edges.forEach(function(e) {
-        network.body.edges[e].options.label = network.body.edges[e].options.title
-    })
-});
-network.on("deselectEdge", function (params) {
-    params.previousSelection.edges.forEach(function(e) {
-        network.body.edges[e].options.label = ""
-    })
-});
-</script>
+    <script type="text/javascript">
+    const nodes = new vis.DataSet({{.Nodes}});
+    const topicFilter = new SlimSelect({
+      select: '#topics',
+      data: nodes.get().filter(e => e.type === "topic").map(e => ({text: e.id, selected: true})),
+      onChange: () => {
+        nodeView.refresh();
+      }
+    });
+    const userFilter = new SlimSelect({
+      select: '#users',
+      data: nodes.get().filter(e => e.type === "user").map(e => ({text: e.id, selected: true})),
+      onChange: () => {
+        nodeView.refresh();
+      }
+    });
+    const nodeView = new vis.DataView(nodes,
+      {filter: item => (item.type === "topic" && topicFilter.selected().includes(item.id)) ||
+          (item.type === "user" && userFilter.selected().includes(item.id))}
+    );
+    const network = new vis.Network(
+        document.getElementById('network'),
+        {nodes: nodeView, edges: new vis.DataSet({{.Edges}})},
+        {layout: {randomSeed: 1}});
+    network.on("selectEdge", function (params) {
+        params.edges.forEach(function(e) {
+            network.body.edges[e].options.label = network.body.edges[e].options.title
+        })
+    });
+    network.on("deselectEdge", function (params) {
+        params.previousSelection.edges.forEach(function(e) {
+            network.body.edges[e].options.label = ""
+        })
+    });
+    </script>
 
 </body>
 </html>
