@@ -18,8 +18,8 @@
         <div id="network"></div>
         <div class="sidebar">
             <div>
-                <label for="topics">Topics</label>
-                <select id="topics" multiple></select>
+                <label for="resources">Resources</label>
+                <select id="resources" multiple></select>
                 <label for="users">Users</label>
                 <select id="users" multiple></select>
                 <label for="operations">Operations</label>
@@ -33,7 +33,7 @@
     const edges = new vis.DataSet({{.Edges}});
 
     const resourceFilter = new SlimSelect({
-      select: '#topics',
+      select: '#resources',
       data: nodes.get().filter(e => e.type === "topic" || e.type === "cluster").map(e => ({text: e.id, selected: true})),
       onChange: () => {
         nodeView.refresh();
