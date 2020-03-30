@@ -25,6 +25,7 @@ type Node struct {
 	Label string    `json:"label"`
 	Shape nodeShape `json:"shape"`
 	Color color     `json:"color"`
+	Type  string    `json:"type"`
 }
 
 type Edge struct {
@@ -54,6 +55,7 @@ func CreateNetwork(graph graph.Graph) ([]Node, []Edge) {
 			Label: labelPrefix + node.Name,
 			Shape: ShapeBox,
 			Color: color,
+			Type:  node.Type,
 		})
 
 		for _, edge := range node.Edges {

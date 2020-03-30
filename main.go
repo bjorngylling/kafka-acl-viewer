@@ -18,14 +18,15 @@ import (
 )
 
 type cmdOpts struct {
-	brokers       string
-	version       string
-	verbose       bool
-	tlsCAFile     string
-	tlsCertFile   string
-	tlsKeyFile    string
-	listenAddr    string
-	fetchInterval time.Duration
+	brokers            string
+	version            string
+	verbose            bool
+	tlsCAFile          string
+	tlsCertFile        string
+	tlsKeyFile         string
+	listenAddr         string
+	fetchInterval      time.Duration
+	insecureSkipVerify bool
 }
 
 type graphTemplateData struct {
@@ -35,14 +36,15 @@ type graphTemplateData struct {
 
 func parseFlags() cmdOpts {
 	opts := cmdOpts{}
-	flag.StringVar(&opts.brokers, "brokers", "", "Kafka bootstrap brokers to connect to, as a comma separated list")
-	flag.StringVar(&opts.version, "version", "2.2.0", "Kafka cluster version")
+	flag.StringVar(&opts.brokers, "brokers", lookupEnvOrString("KAFKA_URL", ""), "Kafka bootstrap brokers to connect to, as a comma separated list")
+	flag.StringVar(&opts.version, "version", lookupEnvOrString("KAFKA_VERSION", "2.2.0"), "Kafka cluster version")
 	flag.BoolVar(&opts.verbose, "verbose", false, "Sarama logging")
-	flag.StringVar(&opts.tlsCAFile, "ca-file", "", "Certificate authority file")
-	flag.StringVar(&opts.tlsCertFile, "cert-file", "", "Client certificate file")
-	flag.StringVar(&opts.tlsKeyFile, "key-file", "", "Client key file")
-	flag.StringVar(&opts.listenAddr, "listen-addr", ":8080", "Address to listen on for the web interface")
-	flag.DurationVar(&opts.fetchInterval, "fetch-interval", 10*time.Minute, "The interval at which to update the ACLs from Kafka")
+	flag.StringVar(&opts.tlsCAFile, "ca-file", lookupEnvOrString("CA_FILE", ""), "Certificate authority file")
+	flag.StringVar(&opts.tlsCertFile, "cert-file", lookupEnvOrString("CERT_FILE", ""), "Client certificate file")
+	flag.StringVar(&opts.tlsKeyFile, "key-file", lookupEnvOrString("KEY_FILE", ""), "Client key file")
+	flag.StringVar(&opts.listenAddr, "listen-addr", lookupEnvOrString("LISTEN_ADDR", ":8080"), "Address to listen on for the web interface")
+	flag.BoolVar(&opts.insecureSkipVerify, "insecure-skip-verify", false, "Skip hostname verification in the TLS handshake, ONLY USE THIS IF YOU KNOW WHAT IT MEANS")
+	flag.DurationVar(&opts.fetchInterval, "fetch-interval", lookupEnvOrDuration("FETCH_INTERVAL", 10*time.Minute), "The interval at which to update the ACLs from Kafka")
 	flag.Parse()
 
 	if len(opts.brokers) == 0 {
@@ -54,6 +56,24 @@ func parseFlags() cmdOpts {
 	}
 
 	return opts
+}
+
+func lookupEnvOrString(key string, defaultVal string) string {
+	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return defaultVal
+}
+
+func lookupEnvOrDuration(key string, defaultVal time.Duration) time.Duration {
+	if val, ok := os.LookupEnv(key); ok {
+		dur, err := time.ParseDuration(val)
+		if err != nil {
+			log.Fatalf("parse duration from env[%s] failed: %v", key, err)
+		}
+		return dur
+	}
+	return defaultVal
 }
 
 // Construct a new admin client connected to the kafka cluster.
@@ -69,7 +89,8 @@ func createAdminClient(opts cmdOpts) sarama.ClusterAdmin {
 
 	config.Net.TLS.Enable = true
 	config.Net.TLS.Config = &tls.Config{
-		RootCAs: x509.NewCertPool(),
+		InsecureSkipVerify: opts.insecureSkipVerify,
+		RootCAs:            x509.NewCertPool(),
 	}
 	if ca, err := ioutil.ReadFile(opts.tlsCAFile); err == nil {
 		config.Net.TLS.Config.RootCAs.AppendCertsFromPEM(ca)
@@ -191,11 +212,13 @@ func main() {
 		}
 	}()
 
-	tmpl, err := template.ParseFiles("page.html")
+	tmpl, err := template.ParseFiles("web/page.html")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	fileServer := http.FileServer(http.Dir("web/static"))
+	http.Handle("/static/", http.StripPrefix(strings.TrimRight("/static/", "/"), fileServer))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		jsonNodes, err := json.Marshal(nodes)
 		if err != nil {

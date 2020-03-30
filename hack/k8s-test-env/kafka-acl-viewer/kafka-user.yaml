@@ -1,0 +1,24 @@
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaUser
+metadata:
+  name: kafka-acl-viewer
+  labels:
+    strimzi.io/cluster: my-cluster
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      # Read ACLs
+      - resource:
+          type: cluster
+        operation: Read
+        host: "*"
+      # Read all topics
+      - resource:
+          type: topic
+          name: "*"
+          patternType: literal
+        operation: Describe
+        host: "*"

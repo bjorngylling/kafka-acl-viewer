@@ -32,3 +32,14 @@ jobs:
         docker push docker.pkg.github.com/bjorngylling/kafka-acl-viewer/kafka-acl-viewer:${GITHUB_REF/refs\/tags\//}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Push release tag to Docker Hub
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        docker login -u "${DOCKER_HUB_USERNAME}" -p "${DOCKER_HUB_KEY}"
+        docker tag docker.pkg.github.com/bjorngylling/kafka-acl-viewer/kafka-acl-viewer:latest \
+                   bjorngylling/kafka-acl-viewer:${GITHUB_REF/refs\/tags\//}
+        docker push bjorngylling/kafka-acl-viewer:${GITHUB_REF/refs\/tags\//}
+      env:
+        DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+        DOCKER_HUB_KEY: ${{ secrets.DOCKER_HUB_KEY }}
