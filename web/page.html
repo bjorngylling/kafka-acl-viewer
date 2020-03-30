@@ -18,19 +18,23 @@
         <div id="network"></div>
         <div class="sidebar">
             <div>
-                <label for="topics">Topics</label>
-                <select id="topics" multiple></select>
+                <label for="resources">Resources</label>
+                <select id="resources" multiple></select>
                 <label for="users">Users</label>
                 <select id="users" multiple></select>
+                <label for="operations">Operations</label>
+                <select id="operations" multiple></select>
             </div>
         </div>
     </div>
 
     <script type="text/javascript">
     const nodes = new vis.DataSet({{.Nodes}});
-    const topicFilter = new SlimSelect({
-      select: '#topics',
-      data: nodes.get().filter(e => e.type === "topic").map(e => ({text: e.id, selected: true})),
+    const edges = new vis.DataSet({{.Edges}});
+
+    const resourceFilter = new SlimSelect({
+      select: '#resources',
+      data: nodes.get().filter(e => e.type === "topic" || e.type === "cluster").map(e => ({text: e.id, selected: true})),
       onChange: () => {
         nodeView.refresh();
       }
@@ -43,12 +47,24 @@
       }
     });
     const nodeView = new vis.DataView(nodes,
-      {filter: item => (item.type === "topic" && topicFilter.selected().includes(item.id)) ||
+      {filter: item => ((item.type === "topic" || item.type === "cluster") && resourceFilter.selected().includes(item.id)) ||
           (item.type === "user" && userFilter.selected().includes(item.id))}
     );
+
+    const operationFilter = new SlimSelect({
+      select: '#operations',
+      data: [... new Set(edges.get().map(e => e.title))].map(e => ({text: e, selected: true})),
+      onChange: () => {
+        edgeView.refresh();
+      }
+    });
+    const edgeView = new vis.DataView(edges,
+      {filter: item => operationFilter.selected().includes(item.title)}
+    );
+
     const network = new vis.Network(
         document.getElementById('network'),
-        {nodes: nodeView, edges: new vis.DataSet({{.Edges}})},
+        {nodes: nodeView, edges: edgeView},
         {layout: {randomSeed: 1}});
     network.on("selectEdge", function (params) {
         params.edges.forEach(function(e) {
