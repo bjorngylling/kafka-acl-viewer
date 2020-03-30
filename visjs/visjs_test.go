@@ -67,7 +67,7 @@ func Test_createNetwork(t *testing.T) {
 				},
 				{
 					ID:    "Kafka Cluster",
-					Label: "Kafka Cluster",
+					Label: "🗄 Kafka Cluster",
 					Shape: "box",
 					Color: color{"", highlight{""}},
 					Type:  "cluster",
