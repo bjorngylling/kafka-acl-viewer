@@ -6,7 +6,7 @@ visualise how events flow within your cluster in a simple way. See the picture b
 
 <img src="kafka-acl-viewer.png?raw=true" width="600" title="Kafka ACL viewer in action">
 
-**Note:** currently all operation types are not displayed and resources (read topics) may not always be "real" topics, the ACL may be a
+**Note:** some operation and resource types are not displayed and resources (read topics) may not always be "real" topics, the ACL may be a
 wildcard resource such as `*` for all topics. Don't use this data as the absolute truth of what accesses are in your cluster.
 
 ## Authentication with Kafka
