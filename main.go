@@ -18,14 +18,15 @@ import (
 )
 
 type cmdOpts struct {
-	brokers       string
-	version       string
-	verbose       bool
-	tlsCAFile     string
-	tlsCertFile   string
-	tlsKeyFile    string
-	listenAddr    string
-	fetchInterval time.Duration
+	brokers            string
+	version            string
+	verbose            bool
+	tlsCAFile          string
+	tlsCertFile        string
+	tlsKeyFile         string
+	listenAddr         string
+	fetchInterval      time.Duration
+	insecureSkipVerify bool
 }
 
 type graphTemplateData struct {
@@ -42,6 +43,7 @@ func parseFlags() cmdOpts {
 	flag.StringVar(&opts.tlsCertFile, "cert-file", lookupEnvOrString("CERT_FILE", ""), "Client certificate file")
 	flag.StringVar(&opts.tlsKeyFile, "key-file", lookupEnvOrString("KEY_FILE", ""), "Client key file")
 	flag.StringVar(&opts.listenAddr, "listen-addr", lookupEnvOrString("LISTEN_ADDR", ":8080"), "Address to listen on for the web interface")
+	flag.BoolVar(&opts.insecureSkipVerify, "insecure-skip-verify", false, "Skip hostname verification in the TLS handshake, ONLY USE THIS IF YOU KNOW WHAT IT MEANS")
 	flag.DurationVar(&opts.fetchInterval, "fetch-interval", lookupEnvOrDuration("FETCH_INTERVAL", 10*time.Minute), "The interval at which to update the ACLs from Kafka")
 	flag.Parse()
 
@@ -87,7 +89,8 @@ func createAdminClient(opts cmdOpts) sarama.ClusterAdmin {
 
 	config.Net.TLS.Enable = true
 	config.Net.TLS.Config = &tls.Config{
-		RootCAs: x509.NewCertPool(),
+		InsecureSkipVerify: opts.insecureSkipVerify,
+		RootCAs:            x509.NewCertPool(),
 	}
 	if ca, err := ioutil.ReadFile(opts.tlsCAFile); err == nil {
 		config.Net.TLS.Config.RootCAs.AppendCertsFromPEM(ca)
