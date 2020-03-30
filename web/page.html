@@ -28,9 +28,9 @@
 
     <script type="text/javascript">
     const nodes = new vis.DataSet({{.Nodes}});
-    const topicFilter = new SlimSelect({
+    const resourceFilter = new SlimSelect({
       select: '#topics',
-      data: nodes.get().filter(e => e.type === "topic").map(e => ({text: e.id, selected: true})),
+      data: nodes.get().filter(e => e.type === "topic" || e.type === "cluster").map(e => ({text: e.id, selected: true})),
       onChange: () => {
         nodeView.refresh();
       }
@@ -43,7 +43,7 @@
       }
     });
     const nodeView = new vis.DataView(nodes,
-      {filter: item => (item.type === "topic" && topicFilter.selected().includes(item.id)) ||
+      {filter: item => ((item.type === "topic" || item.type === "cluster") && resourceFilter.selected().includes(item.id)) ||
           (item.type === "user" && userFilter.selected().includes(item.id))}
     );
     const network = new vis.Network(

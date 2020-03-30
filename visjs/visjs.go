@@ -49,6 +49,8 @@ func CreateNetwork(graph graph.Graph) ([]Node, []Edge) {
 			color = ColorGreen
 		case "topic":
 			labelPrefix = "🗒 "
+		case "cluster":
+			labelPrefix = "🗄 "
 		}
 		nodes = append(nodes, Node{
 			ID:    id,

@@ -161,6 +161,8 @@ func parseResourceAcls(acls []sarama.ResourceAcls) graph.Graph {
 					switch acl.Operation {
 					case sarama.AclOperationDescribe:
 						resource.AddEdge(&graph.Edge{Target: user.Name, Operation: stringify(acl.Operation)})
+					case sarama.AclOperationRead:
+						resource.AddEdge(&graph.Edge{Target: user.Name, Operation: stringify(acl.Operation)})
 					case sarama.AclOperationAlter:
 						user.AddEdge(&graph.Edge{Target: resourceName, Operation: stringify(acl.Operation)})
 					}
@@ -170,6 +172,8 @@ func parseResourceAcls(acls []sarama.ResourceAcls) graph.Graph {
 						resource.AddEdge(&graph.Edge{Target: user.Name, Operation: stringify(acl.Operation)})
 					case sarama.AclOperationWrite:
 						user.AddEdge(&graph.Edge{Target: resourceName, Operation: stringify(acl.Operation)})
+					case sarama.AclOperationDescribe:
+						resource.AddEdge(&graph.Edge{Target: user.Name, Operation: stringify(acl.Operation)})
 					case sarama.AclOperationAll:
 					case sarama.AclOperationAny:
 						resource.AddEdge(&graph.Edge{Target: user.Name, Operation: "Read"})
