@@ -8,7 +8,6 @@ spec:
     version: 2.4.0
     replicas: 1
     listeners:
-      plain: {}
       tls:
         authentication:
           type: tls
