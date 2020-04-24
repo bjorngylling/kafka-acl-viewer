@@ -54,24 +54,12 @@ spec:
           patternType: literal
         operation: Read
         host: "*"
-      - resource:
-          type: topic
-          name: shipments
-          patternType: literal
-        operation: Describe
-        host: "*"
       # Produce to sales
       - resource:
           type: topic
           name: sales
           patternType: literal
         operation: Write
-        host: "*"
-      - resource:
-          type: topic
-          name: sales
-          patternType: literal
-        operation: Describe
         host: "*"
       # Consume users
       - resource:
@@ -80,24 +68,12 @@ spec:
           patternType: literal
         operation: Read
         host: "*"
-      - resource:
-          type: topic
-          name: users
-          patternType: literal
-        operation: Describe
-        host: "*"
       # Produce to users
       - resource:
           type: topic
           name: users
           patternType: literal
         operation: Write
-        host: "*"
-      - resource:
-          type: topic
-          name: users
-          patternType: literal
-        operation: Describe
         host: "*"
 ---
 apiVersion: kafka.strimzi.io/v1beta1
@@ -118,12 +94,6 @@ spec:
           name: shipments
           patternType: literal
         operation: Write
-        host: "*"
-      - resource:
-          type: topic
-          name: shipments
-          patternType: literal
-        operation: Describe
         host: "*"
 ---
 apiVersion: kafka.strimzi.io/v1beta1
@@ -152,22 +122,10 @@ spec:
           patternType: literal
         operation: Read
         host: "*"
-      - resource:
-          type: topic
-          name: users
-          patternType: literal
-        operation: Describe
-        host: "*"
       # Consume users
       - resource:
           type: topic
           name: sales
           patternType: literal
         operation: Read
-        host: "*"
-      - resource:
-          type: topic
-          name: sales
-          patternType: literal
-        operation: Describe
         host: "*"
