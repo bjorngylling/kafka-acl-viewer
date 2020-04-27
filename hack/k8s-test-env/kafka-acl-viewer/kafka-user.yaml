@@ -2,6 +2,7 @@ apiVersion: kafka.strimzi.io/v1beta1
 kind: KafkaUser
 metadata:
   name: kafka-acl-viewer
+  namespace: kafka
   labels:
     strimzi.io/cluster: my-cluster
 spec:
@@ -13,7 +14,7 @@ spec:
       # Read ACLs
       - resource:
           type: cluster
-        operation: Read
+        operation: Describe
         host: "*"
       # Read all topics
       - resource:
