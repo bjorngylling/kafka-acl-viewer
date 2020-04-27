@@ -11,5 +11,5 @@ wildcard resource such as `*` for all topics. Don't use this data as the absolut
 
 ## Authentication with Kafka
 This application is built to authenticate against Kafka using TLS. It requires two ACL entries on the broker to
-function properly. The first one, to read ACLs from the cluster itself `--cluster --operation read` and to describe
+function properly. The first one, to read ACLs from the cluster itself `--cluster --operation describe` and to describe
 all topics in the cluster, `--topic='*' --operation describe`.
